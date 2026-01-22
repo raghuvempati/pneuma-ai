@@ -1,0 +1,60 @@
+apiVersion: ray.io/v1
+kind: RayCluster
+metadata:
+  name: pneuma-brain
+spec:
+  rayVersion: '2.9.0'
+  # Head Node: The Control Plane (Runs the Orchestrator)
+  headGroupSpec:
+    serviceType: ClusterIP
+    rayStartParams:
+      dashboard-host: '0.0.0.0'
+    template:
+      spec:
+        containers:
+        - name: ray-head
+          image: pneuma-ai:v1 # <--- YOUR CUSTOM IMAGE
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: "2"
+              memory: "4Gi"
+          env:
+          # Inject DB Connection Strings
+          - name: NEBULA_HOSTS
+            value: "pneuma-memory-graphd.default.svc.cluster.local:9669"
+          - name: QDRANT_HOST
+            value: "qdrant.default.svc.cluster.local"
+          - name: OPENAI_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: pneuma-secrets
+                key: openai-api-key
+
+  # Worker Nodes: The Agents (Scalable)
+  workerGroupSpecs:
+  - replicas: 1
+    minReplicas: 1
+    maxReplicas: 10 # Autoscale up to 10 nodes (thousands of agents)
+    groupName: small-group
+    rayStartParams: {}
+    template:
+      spec:
+        containers:
+        - name: ray-worker
+          image: pneuma-ai:v1 # <--- YOUR CUSTOM IMAGE
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: "1"
+              memory: "2Gi"
+          env:
+          - name: NEBULA_HOSTS
+            value: "pneuma-memory-graphd.default.svc.cluster.local:9669"
+          - name: QDRANT_HOST
+            value: "qdrant.default.svc.cluster.local"
+          - name: OPENAI_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: pneuma-secrets
+                key: openai-api-key
