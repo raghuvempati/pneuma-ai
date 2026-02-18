@@ -1,0 +1,41 @@
+apiVersion: apps.nebula-graph.io/v1alpha1
+kind: NebulaCluster
+metadata:
+  name: pneuma-graph
+  namespace: default
+spec:
+  graphd:
+    replicas: 1
+    image: vesoft/nebula-graphd
+    version: v3.8.0
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "500Mi"
+    service:
+      type: LoadBalancer
+      externalTrafficPolicy: Local
+  metad:
+    replicas: 1
+    image: vesoft/nebula-metad
+    version: v3.8.0
+    dataVolumeClaim:
+      resources:
+        requests:
+          storage: 1Gi
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "500Mi"
+  storaged:
+    replicas: 1
+    image: vesoft/nebula-storaged
+    version: v3.8.0
+    dataVolumeClaims:
+      - resources:
+          requests:
+            storage: 2Gi
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "500Mi"

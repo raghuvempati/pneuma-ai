@@ -1,0 +1,55 @@
+apiVersion: ray.io/v1
+kind: RayCluster
+metadata:
+  name: pneuma-ray
+  namespace: default
+spec:
+  rayVersion: '2.54.0'
+  headGroupSpec:
+    rayStartParams:
+      dashboard-host: '0.0.0.0'
+    template:
+      spec:
+        volumes:
+          - name: dshm
+            emptyDir:
+              medium: Memory
+        containers:
+          - name: ray-head
+            image: rayproject/ray:2.54.0-py312-aarch64
+            resources:
+              requests:
+                cpu: "500m"
+                memory: "2Gi" # Increased memory
+            ports:
+              - containerPort: 8265
+                name: dashboard
+              - containerPort: 10001
+                name: client
+              - containerPort: 6379
+                name: gcs
+            volumeMounts:
+              - mountPath: /dev/shm
+                name: dshm
+  workerGroupSpecs:
+    - replicas: 1
+      minReplicas: 1
+      maxReplicas: 3
+      groupName: standard-workers
+      rayStartParams: {}
+      template:
+        spec:
+          volumes:
+            - name: dshm
+              emptyDir:
+                medium: Memory
+          containers:
+            - name: ray-worker
+              image: rayproject/ray:2.54.0-py312-aarch64
+              resources:
+                requests:
+                  cpu: "500m"
+                  memory: "1Gi"
+              volumeMounts:
+                - mountPath: /dev/shm
+                  name: dshm

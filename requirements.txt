@@ -1,7 +1,8 @@
-nebula3-python
-qdrant-client
-sentence-transformers
-ray[default]
-autogen-agentchat
-autogen-ext[openai]
-python-dotenv
+# nebula3-python
+# qdrant-client
+# sentence-transformers
+# ray[default]
+# autogen-agentchat
+# autogen-ext[openai]
+# python-dotenv
+
