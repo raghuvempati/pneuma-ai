@@ -1,15 +1,15 @@
 import ray
 from pneuma.core.agent import HydratedAgent
 from pneuma.memory.vector_store import SemanticMemory
+from pneuma.topology.graph_store import SharedBrain
 
 class TaskDispatcher:
-    def __init__(self, memory: SemanticMemory):
+    # 1. Require the SharedBrain upon initialization
+    def __init__(self, memory: SemanticMemory, brain: SharedBrain):
         self.memory = memory
+        self.brain = brain
 
     def execute_single_task(self, task: str) -> str:
-        """Discovers the right agent, hydrates it on the cluster, and executes the task."""
-        
-        # 1. Discover the best agent from Qdrant
         discovered = self.memory.discover_agents(task, limit=1)
         if not discovered:
             return "Error: No suitable agents found in semantic memory."
@@ -21,21 +21,26 @@ class TaskDispatcher:
         print(f"[Dispatcher] Selected {agent_id} (Confidence Score: {best_match['score']:.4f})")
         print(f"[Dispatcher] Hydrating {agent_id} on Ray cluster...")
 
-        # 2. Deploy the agent dynamically to a Kubernetes Worker Pod
         agent_actor = HydratedAgent.remote(
             agent_id=agent_id,
             system_message=system_message
         )
 
-        # 3. Route the task to the remote agent
         print(f"[Dispatcher] Routing task to {agent_id}...")
         try:
             response = ray.get(agent_actor.process_message.remote(task))
+            
+            # 2. NEW LOGIC: Record the successful execution in NebulaGraph
+            print(f"[Dispatcher] Committing execution memory to Shared Brain...")
+            self.brain.insert_execution_record(
+                agent_id=agent_id, 
+                agent_role=system_message, 
+                task_desc=task
+            )
+            
         except Exception as e:
             response = f"Error during execution: {str(e)}"
         
-        # 4. Cleanup: Kill the actor to free up cluster RAM
-        # In a real swarm, you might keep them alive, but for single-task routing, we clean up.
         print(f"[Dispatcher] Task complete. Spinning down {agent_id}.")
         ray.kill(agent_actor)
         
