@@ -1,11 +1,6 @@
-# nebula3-python
-# qdrant-client
-# sentence-transformers
-# ray[default]
-# autogen-agentchat
-# autogen-ext[openai]
-# python-dotenv
-
 ray[default]==2.54.0
 autogen-agentchat>=0.4.0
 autogen-ext[openai]>=0.4.0
+qdrant-client==1.12.0
+openai>=1.0.0
+nebula3-python>=3.8.0
