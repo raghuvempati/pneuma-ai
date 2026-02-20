@@ -1,10 +1,12 @@
 import ray
-import os
 import time
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.messages import TextMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_core import CancellationToken
+
+# IMPORT THE CENTRALIZED SETTINGS
+from pneuma.core.config import settings 
 
 @ray.remote
 class HydratedAgent:
@@ -12,14 +14,9 @@ class HydratedAgent:
         self.agent_id = agent_id
         self.system_message = system_message
         
-        # We will centralize this API key logic in Item 4, but keep it here for now
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY environment variable is missing.")
-            
         self.model_client = OpenAIChatCompletionClient(
-            model="gpt-4o-mini",
-            api_key=api_key
+            model=settings.openai_model,
+            api_key=settings.openai_api_key
         )
         
         self.agent = AssistantAgent(

@@ -61,7 +61,7 @@ class SharedBrain:
         finally:
             session.release()
 
-    def insert_execution_record(self, agent_id: str, agent_role: str, task_desc: str, task_result: str):
+    def insert_execution_record(self, agent_id: str, agent_role: str, task_desc: str, task_result: str) -> str:
         import uuid
         import time
         
@@ -71,18 +71,17 @@ class SharedBrain:
         session = self.get_session()
         try:
             self._run(session, 'USE pneuma_brain;')
-            
-            # Clean strings aggressively for nGQL insertion
             safe_role = agent_role.replace('"', "'").replace("\n", " ")
             safe_desc = task_desc.replace('"', "'").replace("\n", " ")
             safe_result = task_result.replace('"', "'").replace("\n", " ")
             
-            # Note: We dynamically add the 'result' property to the Task node here
             self._run(session, f'INSERT VERTEX Agent(role) VALUES "{agent_id}":("{safe_role}");')
             self._run(session, f'INSERT VERTEX Task(description, status, result) VALUES "{task_id}":("{safe_desc}", "Completed", "{safe_result}");')
             self._run(session, f'INSERT EDGE EXECUTED(executed_at) VALUES "{agent_id}"->"{task_id}":({timestamp});')
             
             print(f"[SharedBrain] Successfully mapped {agent_id} -> EXECUTED -> {task_id}")
+            
+            return task_id
         finally:
             session.release()
 
@@ -102,6 +101,21 @@ class SharedBrain:
                 if memories:
                     print(f"[SharedBrain] Memory Recall Successful! Found cached result for task.")
                     return memories[0].get('result')
+            return None
+        finally:
+            session.release()
+
+    def recall_memory_by_id(self, task_id: str) -> str | None:
+        """O(1) retrieval of a task result using its exact physical Graph ID."""
+        session = self.get_session()
+        try:
+            self._run(session, 'USE pneuma_brain;')
+            
+            query = f'MATCH (t:Task) WHERE id(t) == "{task_id}" RETURN t.Task.result AS result;'
+            result = self._run(session, query)
+            
+            if not result.is_empty() and result.as_primitive():
+                return result.as_primitive()[0].get('result')
             return None
         finally:
             session.release()
