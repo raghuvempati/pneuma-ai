@@ -1,4 +1,3 @@
-import os
 import sys
 import ray
 from pathlib import Path
@@ -7,14 +6,16 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(PROJECT_ROOT / "src"))
 
+from pneuma.core.config import settings
 from pneuma.memory.vector_store import SemanticMemory
 from pneuma.topology.graph_store import SharedBrain
 from pneuma.orchestration.dispatcher import TaskDispatcher
 
 if __name__ == "__main__":
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        print("Please export OPENAI_API_KEY='your-key' in your terminal first.")
+    try:
+        api_key = settings.openai_api_key
+    except ValueError as e:
+        print(e)
         exit(1)
 
     print("Connecting to Project Pneuma Infrastructure...")
@@ -22,16 +23,19 @@ if __name__ == "__main__":
     # 1. Connect to Compute (Ray)
     cluster_env = {
         "working_dir": str(PROJECT_ROOT / "src"),
-        "env_vars": {"OPENAI_API_KEY": api_key},
+        "env_vars": {
+            "OPENAI_API_KEY": api_key,
+            "OPENAI_MODEL": settings.openai_model,
+        },
         "pip": ["autogen-agentchat>=0.4.0", "autogen-ext[openai]>=0.4.0", "nebula3-python>=3.8.0"]
     }
     ray.init("ray://localhost:10001", runtime_env=cluster_env)
     
     # 2. Connect to Semantic Memory (Qdrant)
-    memory = SemanticMemory(host="localhost", port=6333)
+    memory = SemanticMemory(host=settings.qdrant_host, port=settings.qdrant_port)
     
     # 3. Connect to Topological Memory (NebulaGraph)
-    brain = SharedBrain(host="127.0.0.1", port=9669)
+    brain = SharedBrain(host=settings.nebula_host, port=settings.nebula_port)
     
     # 4. Initialize Orchestrator
     dispatcher = TaskDispatcher(memory=memory, brain=brain)

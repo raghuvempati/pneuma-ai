@@ -1,4 +1,3 @@
-import os
 import sys
 from pathlib import Path
 
@@ -6,18 +5,19 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(PROJECT_ROOT / "src"))
 
-from pneuma.core.agent import HydratedAgent
+from pneuma.core.config import settings
 from pneuma.memory.vector_store import SemanticMemory
 
 if __name__ == "__main__":
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        print("Please export OPENAI_API_KEY='your-key' in your terminal first.")
+    try:
+        settings.openai_api_key
+    except ValueError as e:
+        print(e)
         exit(1)
 
     print("Connecting to Qdrant Semantic Memory...")
     # Initialize our Qdrant wrapper
-    memory = SemanticMemory(host="localhost", port=6333)
+    memory = SemanticMemory(host=settings.qdrant_host, port=settings.qdrant_port)
 
     # 1. Register agents into the vector database
     print("\nRegistering agent profiles...")

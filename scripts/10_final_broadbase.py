@@ -16,7 +16,10 @@ if __name__ == "__main__":
     # 1. Connect to Ray using the centralized API key
     cluster_env = {
         "working_dir": str(PROJECT_ROOT / "src"),
-        "env_vars": {"OPENAI_API_KEY": settings.openai_api_key},
+        "env_vars": {
+            "OPENAI_API_KEY": settings.openai_api_key,
+            "OPENAI_MODEL": settings.openai_model,
+        },
         "pip": ["autogen-agentchat>=0.4.0", "autogen-ext[openai]>=0.4.0", "nebula3-python>=3.8.0"]
     }
     ray.init("ray://localhost:10001", runtime_env=cluster_env)

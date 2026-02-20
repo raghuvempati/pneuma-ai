@@ -5,12 +5,13 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(PROJECT_ROOT / "src"))
 
+from pneuma.core.config import settings
 from pneuma.topology.graph_store import SharedBrain
 
 if __name__ == "__main__":
     print("Connecting to Project Pneuma Shared Brain for Schema Migration...")
     
-    brain = SharedBrain(host="127.0.0.1", port=9669)
+    brain = SharedBrain(host=settings.nebula_host, port=settings.nebula_port)
     session = brain.get_session()
     
     try:
