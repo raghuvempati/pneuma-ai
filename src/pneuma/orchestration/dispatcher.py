@@ -2,6 +2,7 @@ import ray
 from pneuma.core.agent import HydratedAgent
 from pneuma.memory.vector_store import SemanticMemory
 from pneuma.topology.graph_store import SharedBrain
+from ray.exceptions import GetTimeoutError
 
 class TaskDispatcher:
     # 1. Require the SharedBrain upon initialization
@@ -9,7 +10,12 @@ class TaskDispatcher:
         self.memory = memory
         self.brain = brain
 
-    def execute_single_task(self, task: str) -> str:
+    def execute_single_task(self, task: str, timeout: int = 120) -> str:
+        print("[Dispatcher] Consulting Shared Brain for previous solutions...")
+        cached_result = self.brain.recall_memory(task)
+        if cached_result:
+            return f"[CACHED RECALL] {cached_result}"
+
         discovered = self.memory.discover_agents(task, limit=1)
         if not discovered:
             return "Error: No suitable agents found in semantic memory."
@@ -21,27 +27,32 @@ class TaskDispatcher:
         print(f"[Dispatcher] Selected {agent_id} (Confidence Score: {best_match['score']:.4f})")
         print(f"[Dispatcher] Hydrating {agent_id} on Ray cluster...")
 
-        agent_actor = HydratedAgent.remote(
-            agent_id=agent_id,
-            system_message=system_message
-        )
+        agent_actor = HydratedAgent.remote(agent_id=agent_id, system_message=system_message)
 
-        print(f"[Dispatcher] Routing task to {agent_id}...")
         try:
-            response = ray.get(agent_actor.process_message.remote(task))
+            print(f"[Dispatcher] Routing task to {agent_id} (with {timeout}s Circuit Breaker)...")
             
-            # 2. NEW LOGIC: Record the successful execution in NebulaGraph
+            # THE FIX: Add a hard 120-second timeout to the Ray execution
+            response = ray.get(agent_actor.process_message.remote(task), timeout=timeout)
+            
             print(f"[Dispatcher] Committing execution memory to Shared Brain...")
             self.brain.insert_execution_record(
                 agent_id=agent_id, 
                 agent_role=system_message, 
-                task_desc=task
+                task_desc=task,
+                task_result=response
             )
             
+        except GetTimeoutError:
+            response = f"Error: Circuit Breaker tripped. {agent_id} exceeded the 120-second timeout."
+            print(f"[Dispatcher] {response}")
         except Exception as e:
             response = f"Error during execution: {str(e)}"
+            print(f"[Dispatcher] {response}")
         
-        print(f"[Dispatcher] Task complete. Spinning down {agent_id}.")
+        # This cleanup step now acts as our fail-safe to free cluster RAM 
+        # even if the agent timed out or crashed.
+        print(f"[Dispatcher] Task complete or terminated. Spinning down {agent_id}.")
         ray.kill(agent_actor)
         
         return response

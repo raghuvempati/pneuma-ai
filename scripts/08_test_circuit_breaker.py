@@ -19,7 +19,6 @@ if __name__ == "__main__":
 
     print("Connecting to Project Pneuma Infrastructure...")
     
-    # 1. Connect to Compute (Ray)
     cluster_env = {
         "working_dir": str(PROJECT_ROOT / "src"),
         "env_vars": {"OPENAI_API_KEY": api_key},
@@ -27,24 +26,19 @@ if __name__ == "__main__":
     }
     ray.init("ray://localhost:10001", runtime_env=cluster_env)
     
-    # 2. Connect to Semantic Memory (Qdrant)
     memory = SemanticMemory(host="localhost", port=6333)
-    
-    # 3. Connect to Topological Memory (NebulaGraph)
     brain = SharedBrain(host="127.0.0.1", port=9669)
-    
-    # 4. Initialize Orchestrator
     dispatcher = TaskDispatcher(memory=memory, brain=brain)
 
-    task = "Write a Python script that prints the first 100 prime numbers."
+    # A brand new task so it bypasses our Shared Brain cache
+    task = "Write a comprehensive 5-page essay on the history of quantum computing algorithms."
     print(f"\n--- Incoming Task ---\n{task}\n")
 
-    # Let the framework orchestrate Phase 1 through 4 automatically
-    final_answer = dispatcher.execute_single_task(task)
+    # Injecting chaos: The agent has exactly 2 seconds to write 5 pages.
+    final_answer = dispatcher.execute_single_task(task, timeout=2)
 
-    print("\n--- Final Agent Response ---")
+    print("\n--- Final System State ---")
     print(final_answer)
 
-    # Clean up connections
     brain.close()
     ray.shutdown()
