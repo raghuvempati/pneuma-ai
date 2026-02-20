@@ -30,5 +30,9 @@ class PneumaConfig:
     def nebula_port(self) -> int:
         return int(os.environ.get("NEBULA_PORT", 9669))
 
+    @property
+    def ray_address(self) -> str:
+        return os.environ.get("RAY_ADDRESS", "ray://localhost:10001")
+
 # Export a single initialized instance to be imported across the framework
 settings = PneumaConfig()

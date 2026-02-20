@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pneuma-core-deployment
+  labels:
+    app: pneuma-core
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pneuma-core
+  template:
+    metadata:
+      labels:
+        app: pneuma-core
+    spec:
+      containers:
+      - name: pneuma-api
+        image: pneuma-core:latest
+        imagePullPolicy: Never  # CRITICAL for Docker Desktop local builds
+        ports:
+        - containerPort: 8000
+        env:
+        # --- Authentication ---
+        - name: OPENAI_API_KEY
+          value: "key"
+        - name: OPENAI_MODEL
+          value: "gpt-4o-mini"
+          
+        # --- Internal Kubernetes DNS Routing ---
+        - name: RAY_ADDRESS
+          value: "ray://pneuma-ray-head-svc.default.svc.cluster.local:10001"
+        - name: QDRANT_HOST
+          value: "qdrant-service.default.svc.cluster.local"
+        - name: NEBULA_HOST
+          value: "pneuma-graph-graphd-svc.default.svc.cluster.local"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pneuma-core-service
+spec:
+  type: LoadBalancer  
+  ports:
+  - port: 8000
+    targetPort: 8000
+  selector:
+    app: pneuma-core
